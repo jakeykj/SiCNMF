@@ -3,136 +3,256 @@ import scipy.sparse as sp
 from sklearn.preprocessing import normalize
 import scipy.linalg as la
 import cPickle as pickle
-import utils
+import cnmf_helper
 
-verbose = 0;
+
 tol = 1e-6;
-debug = 1;
+verbose = 0;
 gradIt = 20;
 V=1
 rk=2
 K=2
 
-FUbkdense=utils.FUbkdense
-computeFactorUpdateSiCNM=utils.computeFactorUpdateSiCNMF
 
-def fit(Xs, N, loss, rk, eta=None, gradIt=10, numIt=50, tol=1e-6, verbose=0, filename="tmp"):    
+FUbk=cnmf_helper.FUbk
+computeFactorUpdate=cnmf_helper.computeFactorUpdateSimplex
+
+def fit(Xs, N, loss, rk, eta=None, gradIt=10, numIt=50, verbose=0, filename="tmp"):    
     V=len(Xs)
     globals()['verbose'] = verbose
-    globals()['tol'] = tol 
     globals()['gradIt'] = gradIt
     globals()['V'] = V
     globals()['K'] = V+1
     globals()['rk'] = rk
     
-    nPat=Xs[0].shpae[0]
-    n=np.sum([nPat*N[v] for v in range(V)])
+    nPat = Xs[0].shpae[0]
+    n = np.sum([nPat*N[v] for v in range(V)])
    
     for v in range(V):
         assert (Xs[v]).min()>=0,'NonNegative matrices only'    
+        assert (sp.issparse(Xs[v]))>=0,'NonNegative matrices only'    
         
+    bias=1
+    p_bias=0
+    # NO PATIENT BIAS
     # Initialization
-    Ubs = [np.random.rand(nPat, rk+V)]+[np.hstack((np.random.rand(N[v], rk), np.zeros((N[v],V)))) for v in range(V)]    
+    if bias: Ubs = [np.hstack((np.random.rand(nPat, rk),p_bias*np.random.rand(nPat,1) ))]+[np.random.rand(N[v], rk+bias) for v in range(V)]    
+    else: Ubs = [np.random.rand(nPat, rk)]+[np.random.rand(N[v], rk) for v in range(V)]    
     for v in range(V):
-        Ubs[v+1][:,rk+v] = np.random.rand(N[v],)
         Ubs[v+1] = normalize(Ubs[v+1],'l1',1)
                 
     Xts=[Xs[v].T.tocsc() for v in range(V)]
     Xs=[Xs[v].tocsc() for v in range(V)]
-    #TODO: smart alpha
-    alpha=[1]*V
-
-    stat={'fiter':[],'Codennz':[],'Mednnz':[],'nzCol':[]}
     
-    gfs = {'func':FUbkdense, 'args':{'Xk':Xts,'lossk':loss,'alpha':alpha}}
-    gfs = gfs + [{'func':FUbkdense, 'args':{'Xk':[Xs[v]],'lossk':[loss[v]],'alpha':[alpha[v]]}} for v in range(V)]
+    #TODO: smart alpha
+    alpha=cnmf_helper.computeAlpha(Xs,N,loss,rk)
+
+    stat={'fiter':[],'Codennz':[],'Mednnz':[],'gradIt':[]}
+    
+    # gradient functions for each factors: input U, V,g
+    gfs = {'func':FUbk, 'args':{'Xk':Xts,'lossk':loss,'alpha':alpha}}
+    gfs = gfs + [{'func':FUbk, 'args':{'Xk':[Xs[v]],'lossk':[loss[v]],'alpha':[alpha[v]]}} for v in range(V)]
+    
+    # projected update for each factor for each factor: input U, step, gradU    
     if (eta==None):
-        nextFactors = [{'func':computeFactorUpdateSiCNMF,'args':{'sU':None,'etaU':None,'rk':rk}} for k in range(K)]
+        # No sparsity
+        nextFactors = [{'func':computeFactorUpdate,'args':{'sU':None,'etaU':None,'bias':bias}} for k in range(K)]
     else:
-        nextFactors = {'func':computeFactorUpdateSiCNMF,'args':{'sU':None,'etaU':eta,'rk':rk}}
-        nextFactors = nextFactors + [{'func':computeFactorUpdateSiCNMF,'args':{'sU':1,'etaU':None,'rk':rk}} for v in range(V)]        
+        # Sparsity
+        nextFactors = {'func':computeFactorUpdate,'args':{'sU':None,'etaU':eta,'bias':bias}}
+        nextFactors = nextFactors + [{'func':computeFactorUpdate,'args':{'sU':1,'etaU':None,'bias':bias}} for v in range(V)]        
       
     # Outer Iterations
-    ftmp=np.inf
-    for i in range(numIt):
+    ftol = 1e-3*n    
+    ftmp = np.inf
+    f=np.array([0.0 for v in range(V)])
+    nnz=[[]]*V
+    
+    for i in range(numIt):        
         if verbose>0: print "Iter: %d" %i
-        Ubs,f,change,stat = updateCNMF(Ubs,gfs,nextFactors,stat)        
+        chtol = 1e-6*np.sum([la.norm(Ubs[k])**2 for k in range(K)])
+        Ubstmp = [Ubs[k].copy() for k in range(K)]
+        git = np.zeros(K)
+        change = 0.0 
+        
+        ###########################################
+        
+        k=0        
+        print "Update Patient Factor"
+        if bias:
+            Vbk=[np.hstack((Ubs[v][:,:-1],p_bias*np.ones((N[v],1)))) for v in range(1,K)];    
+            bk=[Ubs[v][:,-1] for v in range(1,K)]
+            Vbk_sum=[np.sum(Vbk[v],0) for v in range(len(Vbk))]
+            bk_sum=[np.sum(bk[v]) for v in range(len(Vbk))]
+        else:
+            Vbk=[Ubs[v] for v in range(1,K)];    
+            bk=[0.0]
+            Vbk_sum=[np.sum(Vbk[v],0) for v in range(len(Vbk))]
+            bk_sum=[0.0 for v in range(len(Vbk))]                   
+        gfs[k]['args'].update({'Vbk':Vbk,'bk':bk,'Vbk_sum':Vbk_sum,'bk_sum':bk_sum})
+
+        Ubs[k],f[range(V)],git[k]=singleUbUpdate(Ubs[k],gfs[k],nextFactors[k],gradIt,verbose)        
+        
+        ch=la.norm(Ubs[k]-Ubstmp[k])**2
+        change=change+ch
+        stat['f_iter'].append(f)
+        
+        for v in range(V):
+            k=v+1
+            print "Update Factor %d" %k
+            if bias:
+                Vbk=[np.hstack((Ubs[0][:,:-1],np.ones((nPat,1))))];    
+                bk=[Ubs[0][:,-1]]
+                Vbk_sum=[np.sum(Vbk[v],0) for v in range(len(Vbk))]
+                bk_sum=[np.sum(bk[v]) for v in range(len(Vbk))]
+            else:
+                Vbk=[Ubs[0]];    
+                bk=[0.0]
+                Vbk_sum=[np.sum(Vbk[v],0) for v in range(len(Vbk))]
+                bk_sum=[0.0 for v in range(len(Vbk))]                   
+            gfs[k]['args'].update({'Vbk':Vbk,'bk':bk,'Vbk_sum':Vbk_sum,'bk_sum':bk_sum})            
+            
+            Ubs[k],f[[v]],git[k]= singleUbUpdate(Ubs[k],gfs[k],nextFactors[k],gradIt,verbose)
+            
+            ch=la.norm(Ubs[k]-Ubstmp[k])**2
+            change=change+ch
+                
+        ########################################             
+        
+        nnz=[[len(np.where(Ubs[v+1][:,j]<1e-15)[0]) for j in range(rk)] for v in range(V)]
+        stat=updateStats(f,nnz,git,stat)
+        print("End of Iter:%d. change= %0.4g. fval=%0.4g. Phenotype Sparsity: " %(i, change, f.sum())
+        for v in range(V):
+            print("\t Mode %d: median(nnz)=%d/%d, (min_nnz,max_nnz)" %(v,np.median(nnz[v]),N[v], np.min(nnz[v]), np.max(nnz[v]))
+        
         # Exit condition
-        if (change < tol or (i>=9 and np.abs(ftmp-f.sum())<1e-3*n)):
+        if ((i>=10) and ((change < chtol)  or (np.abs(ftmp-f.sum())<ftol))):
             exitIter(i,ftmp,f.sum(),change)
             break
         else:
             ftmp=f.sum()
             
     if (i==numIt-1):
-        exitIter(i,ftmp,f.sum(),change)
-    
-    # Normalization
-    b1s, b2s, Us = normalizeFactors(Ubs)       
-    
-    return b1s, b2s, Us, f[:V], i+1
+        exitIter(i,ftmp,f.sum(),change)        
+                  
+    stat['niter']=i+1
+    return Ubs, f, stat
 
-
-def updateCNMF(Ubs,gfs,nectFactors,stat):
-    change=0;
-    f=np.array([0.0 for v in range(V)])
-    s = np.ones(rk+V,)
-    #update pid
-    k=0
-    Ubtemp=Ubs[k].copy()
-    Vbk=[Ubs[v] for v in range(1,K)];    
-    gfs[k]['args']['Vbk']=Vbk    
-    Ubs[k],f[:V],f[V+k],git=singleUbUpdate(Ubs[k],gfs[k],nextFactors[k],gradIt,tol,verbose)
-    
-    ch=la.norm(Ubs[k]-Ubtemp)
-    change=change+ch**2
-    
-    if (verbose>0):
-        print "UpdateUbk(%d):ch=%0.2g,loss=%f,gradIt=%d"\
-        %(Ubs[k].shape[0],ch,f.sum(),git)
-        print "nz/nnz=%d/%d (minnz,maxnz)=(%d,%d)" \
-        %(np.median([len(np.where(Ubs[k][:,j]<1e-15)[0]) for j in range(rk)]), Ubs[pid].shape[0],
-          np.min([len(np.where(Ubs[k][:,j]<1e-15)[0]) for j in range(rk)]), 
-          np.max([len(np.where(Ubs[k][:,j]<1e-15)[0]) for j in range(rk)]))
-            
-           
-    #update other factors
-    for v in range(V):
-        k=v+1
-        Sk=np.array([int(j<rk or j==rk+v) for j in range(rk+V)])
-        Ubtemp=Ubs[k][:,Sk>0].copy()
-        Vbk=[Ubs[0][:,Sk>0]];
-        gfs[k]['args']['Vbk']=Vbk        
-        Ubs[k][:,Sk>0],f[v],f[V+k],git= singleUbUpdate(Ubs[k][:,Sk>0],gfs[k],nextFactors[k],gradIt,tol,verbose)
-
-        ch=la.norm(Ubs[k][:,Sk>0]-Ubtemp)
-        change=change+ch**2
-
-        if (verbose>0):
-            print "UpdateUbk(%d):ch=%0.2g,loss=%f,gradIt=%d"\
-            %(Ubs[k].shape[0],ch,f.sum(),git)
-            print "nz/nnz=%d/%d (minnz,maxnz)=(%d,%d)" \
-            %(np.median([len(np.where(Ubs[k][:,j]<1e-15)[0]) for j in range(rk)]), Ubs[k].shape[0],
-              np.min([len(np.where(Ubs[k][:,j]<1e-15)[0]) for j in range(rk)]), 
-              np.max([len(np.where(Ubs[k][:,j]<1e-15)[0]) for j in range(rk)]))
-                
-    change=np.sqrt(change)
-        
-    return Ubs,f,change
-
-
-def singleUbUpdate(Ub,gf,nextFactor,gradIt,tol):
-    
-    
-    
-    return Ub,f,r,i
-
-
-def normalizeFactors(Ubs)
-    Us=[Ubs[k][:,:rk] for k in range(K)]
-    b1s=[Ubs[0][:,rk+v] for v in range(V)]
-    b2s=[Ubs[v+1][:,rk] for v in range(V)]    
-    return b1s,b2s,Us
-
+def updateStats(f,nnz,git,stat):
+    # hardcoded numbers
+    stat['gradIt'].append(git)
+    stat['f_iter'].append(f)
+    stat['Codennz'].append(nnz[1])
+    stat['Mednnz'].append(nnz[2])
+    return stat      
+                  
 def exitIter(i,fold,fnew,change)
     print "Exited in %d iterations with change (ch=%0.2g); decrease in function (f-fnew<%f); loss=%f" %(i+1,change,fold-fnew,fnew)
+
+
+def singleUbUpdate(Ub,gf,nextFactor,gradIt,tol):                  
+    #Ub assumed to be in the domain    
+    ftol=1e-2    
+    step=1    
+    ftmp=np.inf
+    Ub_curr=Ub.copy()
+                  
+    for i in xrange(gradIt):          
+        chtol=1e-8*la.norm(Ubcurr)**2        
+        #Compute Gradients
+        f,gradf = gf['func'](Ubk=Ub_curr,g=1,**gf['args'])
+        Ub_new,Gt2,m = nextFactor['func'](Ub=Ub_curr,step=step,gradf=gradf,**nextFactor['args'])
+        fnew = gf['func'](Ubk=Ub_new,g=0,**gf['args']) 
+                  
+        # LINE SEARCH
+        # Increase step size
+        case = -1                  
+        for k in range(100):
+            if m-(0.5/step)*Gt2<0:
+                print 'm:',m,'step:',step,'Gt2:',Gt2,'0.5/step*Gt2',(0.5/step)*Gt2
+            if (np.sum(f-fnew)<=max(m-(0.5/step)*Gt2,0.0)):
+                case=1
+            
+            # Saving latest valid step
+            Ubtemp=Ubnew.copy()
+            ftemp=fnew.copy()
+            mtemp=m
+            Gt2temp=Gt2
+            
+            # Increment
+            step=step/tau;
+            Ub_new,Gt2,m = nextFactor['func'](Ub=Ub_curr,step=step,gradf=gradf,**nextFactor['args'])
+            fnew = gf['func'](Ubk=Ub_new,g=0,**gf['args'])
+            if (np.sqrt(Gt2)<1e-20):
+                case=2
+                break
+        if k:
+            step=step*tau
+            Ub_new=Ubtemp.copy()
+            fnew=ftemp.copy()
+            m=mtemp;
+            Gt2=Gt2temp
+        else:    
+            # Decrease step size
+            ftemp = np.inf; Ubtemp = Ub_curr.copy(); mtemp=m; Gt2temp=Gt2
+            for k in range(k,50):
+                if m-(0.5/step)*Gt2<0:
+                    print 'm:',m,'step:',step,'Gt2:',Gt2,'0.5/step&Gt2:',(0.5/step)*Gt2
+                if (np.sum(f)-np.sum(fnew)>=max(m-(0.5/step)*Gt2,0.0)):
+                    case=3
+                    break                
+                if (Gt2<1e-50):
+                    Ub_new=Ub_curr
+                    fnew=f
+                    case = 4
+                    break            
+
+                step = tau*step
+                Ub_new,Gt2,m = nextFactor['func'](Ub=Ub_curr,step=step,gradf=gradf,**nextFactor['args'])
+                fnew = gf['func'](Ubk=Ub_new,g=0,**gf['args'])
+
+                if ((np.sum(ftemp) < np.sum(fnew)) and ((np.sum(f)-np.sum(ftemp))>max(1e-6*m,0))):
+                    step = step/tau
+                    Ub_new = Ubtemp.copy()
+                    fnew = ftemp.copy()
+                    m=mtemp
+                    Gt2=Gt2temp
+                    case=5
+                    break
+                else:
+                    ftemp = fnew.copy()
+                    Ubtemp = Ub_new.copy()
+                    mtemp = m
+                    Gt2temp = Gt2
+                
+            if (k>=100):
+                print "k>=50,step=%0.2g" %step  
+                Ub_new=Ub_curr.copy()
+                fnew=f
+                Gt2=0
+
+        change = Gt2
+        
+        if verbose>0:
+            print "\t PGDUpdate: change= %0.4g, exit_case=%d, step:%0.4g,fnew=%0.4, f=%0.4g, fdiff=%0.4g"\
+            %(change,case,step,np.sum(fnew),np.sum(f),np.sum(fnew)-np.sum(f))
+        if change<tol: 
+            #print change,step,Ub_new.sum(0)
+            break
+        
+        if change<chtol:
+            if verbose:
+                print ("Exiting PGD update in %d iterations due to small update change %f" %(i+1,change))
+            break
+            
+        if np.sum(f-fnew)<ftol:
+            if verbose:
+                print ("Exiting PGD update in %d iterations due to small f change %f" %(i+1,np.sum(f-fnew)))
+            break
+        
+        Ub_curr=Ub_new.copy()
+            
+    if verbose and (i==(gradIt-1)):
+        print ("Exiting PGD update in %d iterations" %(i+1))
+    
+    return Ub_new,fnew,i+1
