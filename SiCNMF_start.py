@@ -3,49 +3,24 @@ import numpy as np
 import cPickle as pickle
 import time
 import hetroSiCNMFEstimator
-ids=range(5)
-model,sources,Xs,rk,etaSweep,outdir,loss=configParser('SiCNMF.config')
-if model=='CNMF'
-    eta=None
+import sys,getopt
     
-V=len(Xs)
-N = [Xs[v].shape[1] for v in range(V)]
 
-verbose = 1
-numIt = 100
-gradIt = 20
-
-if __name__ == '__main__':
-    jobs=[];
-    multProc=1;
-    if multProc:
-        import multiprocessing
-        jobs=[];
-        for i in range(ids):
-            for eta in etaSweep:
-                p=multiprocessing.Process(target=run_save,args=(rk,eta,i,verbose))
-                jobs.append(p)
-                p.start()
-        for p in jobs:
-            p.join()
-    else:
-        verbose = 1 
-        for eta in etaSweep:     
-            np.random.seed(42)
-            run_save(rk,eta,0,verbose)
 
 # min \sum_v \alpha_v D_v(X_v, U_pU_v.T) + eta*||U_p||_F^2, s.t. ||U_v[:,j]||_1=1
 def run_save(rk,eta,i,verbose):
     np.random.seed()
+    sys.stdout = open(time.strftime("%d%m")+ '_%s_eta%s_i%d' %(model,eta,i) + ".out", "w")
     print "Model:%s, Rank:%d, eta:%s, i:%d, rand:%f \n"  %(model,rk,eta,i,np.random.rand()),Xs
-    fname='%svandy_%s_%s_eta%0.2g_i%d_rk%d' %(outdir,model,eta,i,rk)
+    fname='%svandy_%s_eta%s_i%d_rk%d' %(outdir,model,eta,i,rk)
+    print fname
     t=time.time()
+
+    Ubs, f, stat = hetroSiCNMFEstimator.fit(Xs=Xs, N=N, loss=loss, rk=rk, eta=eta, gradIt=gradIt, numIt=numIt, verbose=verbose,filename=fname)
     
-    b1s, b2s, Us, f, nit = hetroSiCNMFEstimator.fit(Xs=Xs, Nid=Nid, loss=loss, rk=rk, eta=eta, gradIt=gradIt, numIt=numIt, verbose=verbose,fname)
+    result={'Ubs':Ubs,'f':f, 'stat': stat, 't':time.time()-t,'model':model}    
     
-    result={'b1s':b1s,'b2s':b2s,'Us':Us,'f':f, 'nit': nit, 't':time.time()-t,'model':model}    
-    
-    save_file(result,'%s_Factors.pickle' %fname)
+    pickle.dump(result,open('%s_Factors.pickle' %fname,'wb'))
     
     
 def configParser(fname):
@@ -54,8 +29,12 @@ def configParser(fname):
     etaSweep=[1]
     loss = ['sparse_poisson']
     for line in inputfile:
-        line=line.replace("'","").replace('"',"")
-        (k,v)=line.split(":",1);k=k.strip();v=v.strip()
+        line=line.replace("'","").replace('"',"")        
+        if not(len(line)):
+            continue
+        (k,v)=line.split(":",1);
+        k=k.strip();
+        v=v.strip()
         if k=='model':
             # CNMF/SiCMNF
             model=v
@@ -73,12 +52,68 @@ def configParser(fname):
             Xs=[np.load(Xf).ravel()[0] for Xf in v.split(',')]
         if k=='etaSweep':
             #  eta parameters
-            etaSweep=[float(vv) for vv in v.split(',')]
+            etaSweep=[vv for vv in v.split(',')]
+            for ii in range(len(etaSweep)):
+                if (etaSweep[ii]=='None'):
+                    etaSweep[ii]=None
+                else:
+                    etaSweep[ii]=float(etaSweep[ii])
         if k=='loss':
             loss=[l.strip() for l in v.split(',')]
-        if k=='ids':
-            ids=[float(vv) for vv in v.split(',')]
+        #if k=='ids':
+        #    ids=[float(vv) for vv in v.split(',')]
     if not(len(loss)==len(Xs)):
         loss=[loss[0]]*len(Xs)
 
     return model,sources,Xs,rank,etaSweep,outdir,loss
+
+if __name__ == '__main__':
+   
+    ids = 0
+    cfg_file = 'SiCNMF.config'
+    multProc=1;
+    try:
+        opts,args=getopt.getopt(sys.argv[1:],"hf:i:p:",["config-file=","run_ids=","parallel="])
+    except getopt.GetoptError:
+        print('SiCNMF_start.py -f <config file> -i <run_id>')
+        
+    for opt, arg in opts:
+        if opt in ('-h','--help'):
+            print('SiCNMF_start.py -f <config file> -i <run_id>')
+            sys.exit(0)
+        elif opt in ('-f','--config-file'):
+            # Config file
+            cfg_file=str(arg)          
+        elif opt in ('-i','--run_ids'):
+            # Comma separated run_ids (multiple initializations). Default 1
+            ids=[int(a) for a in arg.split(',')]
+        elif opt in ('-p','--parallel'):
+            # binary multiprocessing code
+            multiproc=int(a)
+    
+    
+    model,sources,Xs,rk,etaSweep,outdir,loss=configParser(cfg_file)
+    V=len(Xs)
+    N = [Xs[v].shape[1] for v in range(V)]
+
+    verbose = 1
+    numIt = 100
+    gradIt = 20
+
+    jobs=[];   
+    if multProc:
+        import multiprocessing
+        jobs=[];
+        for i in ids:
+            for eta in etaSweep:
+                p=multiprocessing.Process(target=run_save,args=(rk,eta,i,verbose))
+                jobs.append(p)
+                p.start()
+        for p in jobs:
+            p.join()
+    else:
+        verbose = 1
+        eta=0.5
+        numIt=2
+        np.random.seed(42)
+        run_save(rk,eta,0,verbose)

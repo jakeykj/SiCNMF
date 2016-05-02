@@ -1,0 +1,146 @@
+Model:SiNMF, Rank:20, eta:0.5, i:0, rand:0.049882 
+[<2039x936 sparse matrix of type '<type 'numpy.float64'>'
+	with 27875 stored elements in COOrdinate format>, <2039x161 sparse matrix of type '<type 'numpy.float64'>'
+	with 9884 stored elements in COOrdinate format>]
+results/vandy_SiNMF_eta0.5_i0_rk20
+Iter: 0
+Update Patient Factor
+[ 0.86952326  0.12520357  0.75244147 ...,  0.17570912  0.1383742
+  0.75661711]
+116.863593755 0.0 [ 1108847.11544565   241536.93411049]
+116.863593755
+	 PGDUpdate: change= 0.06277, k=11, exit_case=5, step:1.771e-06,fnew=1.348e+06, f=1.35e+06, fdiff=2113>1.771e+04
+[ 0.86822243  0.1239034   0.75114075 ...,  0.17479422  0.13745932
+  0.75570169]
+0.249815688895 116.448375337 [ 1106954.54068701   241316.41374185]
+0.249901475345
+	 PGDUpdate: change= 1.964e-13, k=11, exit_case=5, step:3.138e-12,fnew=1.348e+06, f=1.348e+06, fdiff=0.003733>0.03127
+Exiting PGD update in 2 iterations due to small update change 0.000000
+Update Factor 1
+[ 0.0459617   0.04397138  0.0591893  ...,  0.01457546  0.00915573
+  0.06280376]
+7.70082201853 0.0 [ 1106954.53734242]
+8.79221735814
+	 PGDUpdate: change= 53.19, k=9, exit_case=3, step:1.968e-05,fnew=8.868e+05, f=1.107e+06, fdiff=2.201e+05>-2.967e+05
+[  1.00000000e-10   2.63687481e-03   1.25324004e-04 ...,   2.61796061e-02
+   2.55533199e-02   4.14279417e-02]
+0.283038633097 1.11574280378 [ 886832.04438392]
+0.261795340096
+	 PGDUpdate: change= 1.352e-08, k=7, exit_case=3, step:4.305e-09,fnew=8.868e+05, f=8.868e+05, fdiff=3.231>1.571
+Exiting PGD update in 2 iterations due to small update change 0.000000
+Update Factor 2
+[ 0.03246365  0.06036854  0.0604574  ...,  0.10078578  0.0807781
+  0.06022362]
+3.19084727068 0.0 [ 241316.41335309]
+5.30895163737
+	 PGDUpdate: change= 6.751, k=11, exit_case=3, step:1.771e-06,fnew=1.787e+05, f=2.413e+05, fdiff=6.261e+04>-1.704e+06
+[ 0.01403444  0.01968223  0.00145725 ...,  0.03641948  0.01868308
+  0.05830408]
+0.091317757967 0.9575725613 [ 178703.9403942]
+0.0799680771862
+	 PGDUpdate: change= 2.941e-31, k=31, exit_case=3, step:1.094e-22,fnew=1.787e+05, f=1.787e+05, fdiff=0>-1.346e-09
+Exiting PGD update in 2 iterations due to small update change 0.000000
+End of Iter:0. change= 60.01. fval=4.2e+05. Phenotype Sparsity: 
+	 Mode 0: median(nnz)=544/936, (min_nnz,max_nnz)=(496,603)
+	 Mode 1: median(nnz)=103/161, (min_nnz,max_nnz)=(96,109)
+Iter: 1
+Update Patient Factor
+[ 0.86822243  0.1239034   0.75114075 ...,  0.17479422  0.13745932
+  0.75570169]
+116.655685458 0.0 [ 886828.81337497  178703.9403942 ]
+116.655685458
+	 PGDUpdate: change= 0, k=45, exit_case=3, step:2.954e-24,fnew=1.066e+06, f=1.066e+06, fdiff=0>0
+Exiting PGD update in 1 iterations due to small update change 0.000000
+Update Factor 1
+[  1.00000000e-10   2.63535721e-03   1.23819621e-04 ...,   2.61795010e-02
+   2.55532250e-02   4.14272306e-02]
+1.2771547865 0.0 [ 886828.81337497]
+3.87329563687
+	 PGDUpdate: change= 9.867e-12, k=19, exit_case=3, step:1.162e-10,fnew=8.868e+05, f=8.868e+05, fdiff=0.2521>0.04245
+Exiting PGD update in 1 iterations due to small update change 0.000000
+Update Factor 2
+[  4.57696879e-18   1.40344423e-02   1.96822292e-02 ...,   3.64194830e-02
+   1.86830828e-02   5.83040784e-02]
+1.00016363356 0.0 [ 178703.9403942]
+4.56537484512
+	 PGDUpdate: change= 9.369e-33, k=42, exit_case=3, step:1.094e-22,fnew=1.787e+05, f=1.787e+05, fdiff=0>-4.278e-11
+Exiting PGD update in 1 iterations due to small update change 0.000000
+End of Iter:1. change= 9.867e-12. fval=3.574e+05. Phenotype Sparsity: 
+	 Mode 0: median(nnz)=543/936, (min_nnz,max_nnz)=(496,602)
+	 Mode 1: median(nnz)=103/161, (min_nnz,max_nnz)=(96,109)
+Iter: 2
+Update Patient Factor
+[ 0.86822243  0.1239034   0.75114075 ...,  0.17479422  0.13745932
+  0.75570169]
+116.655685458 0.0 [ 886828.56127973  178703.9403942 ]
+116.655685458
+	 PGDUpdate: change= 0, k=45, exit_case=3, step:2.954e-24,fnew=1.066e+06, f=1.066e+06, fdiff=0>0
+Exiting PGD update in 1 iterations due to small update change 0.000000
+Update Factor 1
+[  1.00000000e-10   2.63531621e-03   1.23778980e-04 ...,   2.61794981e-02
+   2.55532224e-02   4.14272114e-02]
+1.2771538062 0.0 [ 886828.56127973]
+3.87371140738
+	 PGDUpdate: change= 8.881e-13, k=20, exit_case=3, step:3.487e-11,fnew=8.868e+05, f=8.868e+05, fdiff=0.0152>0.01273
+Exiting PGD update in 1 iterations due to small update change 0.000000
+Update Factor 2
+[  4.32688095e-18   1.40344423e-02   1.96822292e-02 ...,   3.64194830e-02
+   1.86830828e-02   5.83040784e-02]
+1.00016363356 0.0 [ 178703.9403942]
+4.56537484512
+	 PGDUpdate: change= 3.34e-33, k=42, exit_case=3, step:1.094e-22,fnew=1.787e+05, f=1.787e+05, fdiff=0>-1.474e-11
+Exiting PGD update in 1 iterations due to small update change 0.000000
+End of Iter:2. change= 8.881e-13. fval=3.574e+05. Phenotype Sparsity: 
+	 Mode 0: median(nnz)=543/936, (min_nnz,max_nnz)=(496,602)
+	 Mode 1: median(nnz)=103/161, (min_nnz,max_nnz)=(96,109)
+Iter: 3
+Update Patient Factor
+[ 0.86822243  0.1239034   0.75114075 ...,  0.17479422  0.13745932
+  0.75570169]
+116.655685458 0.0 [ 886828.54608145  178703.9403942 ]
+116.655685458
+	 PGDUpdate: change= 0, k=45, exit_case=3, step:2.954e-24,fnew=1.066e+06, f=1.066e+06, fdiff=0>0
+Exiting PGD update in 1 iterations due to small update change 0.000000
+Update Factor 1
+[  1.00000000e-10   2.63530391e-03   1.23766787e-04 ...,   2.61794973e-02
+   2.55532216e-02   4.14272056e-02]
+1.27715351212 0.0 [ 886828.54608145]
+3.87383612314
+	 PGDUpdate: change= 7.193e-15, k=22, exit_case=5, step:3.138e-12,fnew=8.868e+05, f=8.868e+05, fdiff=0.0002582>0.001146
+Exiting PGD update in 1 iterations due to small update change 0.000000
+Update Factor 2
+[  4.07679312e-18   1.40344423e-02   1.96822292e-02 ...,   3.64194830e-02
+   1.86830828e-02   5.83040784e-02]
+1.00016363356 0.0 [ 178703.9403942]
+4.56537484512
+	 PGDUpdate: change= 3.89e-33, k=42, exit_case=3, step:1.094e-22,fnew=1.787e+05, f=1.787e+05, fdiff=0>-1.685e-11
+Exiting PGD update in 1 iterations due to small update change 0.000000
+End of Iter:3. change= 7.193e-15. fval=3.574e+05. Phenotype Sparsity: 
+	 Mode 0: median(nnz)=543/936, (min_nnz,max_nnz)=(496,602)
+	 Mode 1: median(nnz)=103/161, (min_nnz,max_nnz)=(96,109)
+Iter: 4
+Update Patient Factor
+[ 0.86822243  0.1239034   0.75114075 ...,  0.17479422  0.13745932
+  0.75570169]
+116.655685458 0.0 [ 886828.5458233  178703.9403942]
+116.655685458
+	 PGDUpdate: change= 0, k=45, exit_case=3, step:2.954e-24,fnew=1.066e+06, f=1.066e+06, fdiff=0>0
+Exiting PGD update in 1 iterations due to small update change 0.000000
+Update Factor 1
+[  1.00000000e-10   2.63530281e-03   1.23765690e-04 ...,   2.61794972e-02
+   2.55532215e-02   4.14272051e-02]
+1.27715348565 0.0 [ 886828.5458233]
+3.8738473472
+	 PGDUpdate: change= 7.193e-15, k=22, exit_case=5, step:3.138e-12,fnew=8.868e+05, f=8.868e+05, fdiff=5.694e-05>0.001146
+Exiting PGD update in 1 iterations due to small update change 0.000000
+Update Factor 2
+[  3.82670528e-18   1.40344423e-02   1.96822292e-02 ...,   3.64194830e-02
+   1.86830828e-02   5.83040784e-02]
+1.00016363356 0.0 [ 178703.9403942]
+4.56537484512
+	 PGDUpdate: change= 2.159e-33, k=42, exit_case=3, step:1.094e-22,fnew=1.787e+05, f=1.787e+05, fdiff=0>-9.666e-12
+Exiting PGD update in 1 iterations due to small update change 0.000000
+End of Iter:4. change= 7.193e-15. fval=3.574e+05. Phenotype Sparsity: 
+	 Mode 0: median(nnz)=543/936, (min_nnz,max_nnz)=(496,602)
+	 Mode 1: median(nnz)=103/161, (min_nnz,max_nnz)=(96,109)
+Exited in 5 iterations with change (ch=7.2e-15); decrease in function (f-fnew<0.000000); loss=357407.880788
