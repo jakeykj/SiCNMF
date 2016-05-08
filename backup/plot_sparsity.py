@@ -2,7 +2,6 @@ import seaborn as sns
 import cPickle as pickle
 import numpy as np
 from pandas import DataFrame
-import scipy.linalg as la
 
 sns.set_style("white")
 sns.set_context("poster", font_scale=1.5, rc={"lines.linewidth": 1})
@@ -10,10 +9,9 @@ sns.set_context("poster", font_scale=1.5, rc={"lines.linewidth": 1})
 
 rk = 20
 N =[2039,936,161]
-
+nvals = 13
 niter = 5
-etas = [25,50,100,500,1000,5000,10000,50000,1e5,5e5,1e6]
-nvals = len(etas)
+etas = [1e-6,1e-5,1e-4,0.001,0.01,0.1,1.0,10,100,1000,1e4,1e5,1e6]
 sid =range(20)
 
 etas = etas[:nvals]
@@ -29,12 +27,11 @@ best_run=np.zeros(len(etas),dtype=int)
 
 jitter=np.arange(-0.15,0.25,0.4/niter)
 
-model = '/home/suriyag/collective-mf/SiCNMF/results/0805/vandy_SiCNMF_eta%s_i%d_rk20.pickle'
+model = '/home/suriyag/collective-mf/SiCNMF/results/0305/vandy_SiCNMF_eta%s_i%d_rk20.pickle'
 
 for ix,eta in enumerate(etas):
     for i in range(niter):
         data = pickle.load(open(model %(float(eta),i),'rb'))
-        print data['f'],la.norm(data['Ubs'][0][:,:-1]),data['stat']['niter'],eta
         for k in range(len(data['Ubs'])):
             data['Ubs'][k]=data['Ubs'][k]/(data['Ubs'][k].sum(0))
         x['nnzPat'] = x['nnzPat']+[len(np.where(data['Ubs'][0][:,j]>1e-10)[0]) for j in range(rk)]
@@ -42,8 +39,9 @@ for ix,eta in enumerate(etas):
         x['nnzMed'] = x['nnzMed']+[len(np.where(data['Ubs'][2][:,j]>1e-10)[0]) for j in range(rk)] 
         x['eta'] = x['eta']+[eta]*rk
         x['sid'] = x['sid']+[sid[ix]+jitter[i]]*rk
-        x['run'] = x['run']+[i]*rk        
-        f[ix,i] = data['f'].sum()
+        x['run'] = x['run']+[i]*rk 
+        print data['f'][:-1],data['f'][-1]/eta,data['stat']['niter']
+        f[ix,i] = data['f'][:-1].sum()
         nit[ix,i] = data['stat']['niter']
         t[ix,i] = data['t']            
         

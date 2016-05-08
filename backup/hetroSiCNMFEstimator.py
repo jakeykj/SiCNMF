@@ -35,7 +35,6 @@ def fit(Xs, N, loss, rk, eta=None, gradIt=10, numIt=50, verbose=0, filename="tmp
     bias=1
     p_bias=0
     # NO PATIENT BIAS
-    
     # Initialization
     if bias: Ubs = [np.hstack((np.random.rand(nPat, rk),p_bias*np.random.rand(nPat,1) ))]+ [np.random.rand(N[v], rk+1) for v in range(V)]    
     else: Ubs = [np.random.rand(nPat, rk)]+[np.random.rand(N[v], rk) for v in range(V)]    
@@ -51,18 +50,24 @@ def fit(Xs, N, loss, rk, eta=None, gradIt=10, numIt=50, verbose=0, filename="tmp
     stat={'f_iter':[],'Codennz':[],'Mednnz':[],'gradIt':[]}
     
     # gradient functions for each factors: input U, V,g
-    gfs = [{'func':FUbk, 'args':{'Xk':Xts,'lossk':loss,'alpha':alpha}}]
-    gfs = gfs + [{'func':FUbk, 'args':{'Xk':[Xs[v]],'lossk':[loss[v]],'alpha':[alpha[v]]}} for v in range(V)]
+    gfs = [{'func':FUbk, 'args':{'Xk':Xts,'lossk':loss,'alpha':alpha,'eta':eta}}]
+    gfs = gfs + [{'func':FUbk, 'args':{'Xk':[Xs[v]],'lossk':[loss[v]],'alpha':[alpha[v]], 'eta':0.0}} for v in range(V)]
     
     # projected update for each factor for each factor: input U, step, gradU    
-    nextFactors = [{'func':computeFactorUpdate,'args':{'sU':None,'eta':eta,'bias':p_bias}}]
-    nextFactors = nextFactors + [{'func':computeFactorUpdate,'args':{'sU':1,'eta':None,'bias':bias}} for v in range(V)]
+    if (eta==None):
+        # No sparsity
+        nextFactors = [{'func':computeFactorUpdate,'args':{'sU':None,'bias':p_bias}}]
+        nextFactors = nextFactors + [{'func':computeFactorUpdate,'args':{'sU':None,'bias':bias}} for v in range(V)]
+    else:
+        # Sparsity
+        nextFactors = [{'func':computeFactorUpdate,'args':{'sU':None,'bias':p_bias}}]
+        nextFactors = nextFactors + [{'func':computeFactorUpdate,'args':{'sU':1,'bias':bias}} for v in range(V)]        
       
     # Outer Iterations
     ftol = 1e-8
     ftmp = np.inf
     
-    f=np.array([np.inf for v in range(V)])
+    f=np.array([np.inf for v in range(V+1)])
     nnz=[[]]*V
     
 
@@ -76,7 +81,7 @@ def fit(Xs, N, loss, rk, eta=None, gradIt=10, numIt=50, verbose=0, filename="tmp
         
         ###########################################
         k=0        
-        print "Update Patient Factor: eta %s" %(nextFactors[k]['args']['eta'])
+        print "Update Patient Factor: eta %s" %(gfs[k]['args']['eta'])
         if bias:
             Vbk=[np.hstack((Ubs[v+1][:,:-1],p_bias*np.ones((N[v],1)))) for v in range(V)];    
             bk=[Ubs[v+1][:,-1] for v in range(V)]
@@ -88,7 +93,7 @@ def fit(Xs, N, loss, rk, eta=None, gradIt=10, numIt=50, verbose=0, filename="tmp
             Vbk_sum=[np.sum(Vbk[v],0) for v in range(len(Vbk))]
             bk_sum=[0.0 for v in range(len(Vbk))]                   
         gfs[k]['args'].update({'Vbk':Vbk,'bk':bk,'Vbk_sum':Vbk_sum,'bk_sum':bk_sum})
-        Ubs[k],f[range(V)],git[k]=singleUbUpdate(Ubs[k],gfs[k],nextFactors[k],gradIt,verbose)        
+        Ubs[k],f[range(V+1)],git[k]=singleUbUpdate(Ubs[k],gfs[k],nextFactors[k],gradIt,verbose)        
         
         ch=la.norm(Ubs[k]-Ubstmp[k])**2
         change=change+ch
@@ -97,7 +102,7 @@ def fit(Xs, N, loss, rk, eta=None, gradIt=10, numIt=50, verbose=0, filename="tmp
 
         for v in range(V):
             k=v+1
-            print "Update Factor %d: eta %s" %(k,nextFactors[k]['args']['eta'])
+            print "Update Factor %d: eta %s" %(k,gfs[k]['args']['eta'])
             if bias:
                 Vbk=[np.hstack((Ubs[0][:,:-1],np.ones((nPat,1))))];    
                 bk=[Ubs[0][:,-1]]

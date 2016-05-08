@@ -10,8 +10,7 @@ import seaborn as sns
 
 # min \sum_v \alpha_v D_v(X_v, U_pU_v.T) + eta*||U_p||_F^2, s.t. ||U_v[:,j]||_1=1
 def run_save(rk,eta,i,verbose):
-    np.random.seed()
-    print i,eta
+    #np.random.seed()
     if i<=20: sys.stdout = open(outdir+time.strftime("%d%m")+ '_%s_eta%s_i%d' %(model,eta,i) + ".out", "w")
     print "ALL PARALLEL PROCESS SAME RANDOM SEED"
     print "Model:%s, Rank:%d, eta:%f, i:%d, rand:%f \n"  %(model,rk,eta,i,np.random.rand()),Xs
@@ -105,7 +104,7 @@ if __name__ == '__main__':
             # Comma separated run_ids (multiple initializations). Default 1
             ids=[int(a) for a in arg.split(',')]
         elif opt in ('-p','--parallel'):
-            # number of cores for multiprocessing code, 0 for no parallel
+            # binary multiprocessing code
             multProc=int(arg)
     
     
@@ -116,21 +115,18 @@ if __name__ == '__main__':
     verbose = 1
     numIt = 50
     gradIt = 50
-    print ids
-    print etaSweep
+
     jobs=[];   
     if multProc:
         import multiprocessing
-        pool = multiprocessing.Pool(multProc)
         jobs=[];
         for i in ids:
-            for eta in etaSweep:     
-                jobs.append((rk,eta,i,verbose))
-        print jobs
-        results=[pool.apply_async(run_save,p) for p in jobs]
-        for result in results:
-            result.get()
-        
+            for eta in etaSweep:
+                p=multiprocessing.Process(target=run_save,args=(rk,eta,i,verbose))
+                jobs.append(p)
+                p.start()
+        for p in jobs:
+            p.join()
     else:
         verbose = 1
         eta=0.5
