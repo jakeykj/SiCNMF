@@ -12,7 +12,8 @@ rk = 20
 N =[2039,936,161]
 
 niter = 5
-etas = [25,50,100,500,1000,5000,10000,50000,1e5,5e5,1e6]
+etas = [25,50,100,500,1000,5000]
+#etas = [25,50]
 nvals = len(etas)
 sid =range(20)
 
@@ -29,7 +30,7 @@ best_run=np.zeros(len(etas),dtype=int)
 
 jitter=np.arange(-0.15,0.25,0.4/niter)
 
-model = '/home/suriyag/collective-mf/SiCNMF/results/0805/vandy_SiCNMF_eta%s_i%d_rk20.pickle'
+model = '/home/suriyag/collective-mf/SiCNMF/results/vandy_SiCNMF_eta%s_i%d_rk20.pickle'
 
 for ix,eta in enumerate(etas):
     for i in range(niter):
@@ -88,7 +89,7 @@ for ix in sid:
     bp=sns.plt.boxplot(np.array(xbest['nnzMed'][xbest['sid']==ix]))
     q3=bp['whiskers'][1].get_ydata()[1]
     med=bp['medians'][0].get_ydata()[1]
-    ax[1,0].text(ix, q3+10, '%1.2f\n(%1.2f)'%(med,q3), size=15, rotation=90, ha="center", va="bottom")
+    ax[1,0].text(ix, q3+1, '%1.2f\n(%1.2f)'%(med,q3), size=15, rotation=90, ha="center", va="bottom")
 
 sns.boxplot(x='sid',y='nnzCode',data=xbest,ax=ax[1,1],order=np.arange(max(sid)+1),\
             palette=best_palette, fliersize=0, whis=1.5); 

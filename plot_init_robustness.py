@@ -6,6 +6,7 @@ import numpy as np
 from pandas import DataFrame
 import seaborn as sns
 import numpy.linalg as la 
+from munkres import Munkres
 from scipy.spatial.distance import cosine, jaccard, hamming
 sns.set_style("whitegrid")
 
@@ -14,9 +15,9 @@ plotmean=0
 
 rk = 20
 N =[2039,936,161]
-nvals = 7
 niter = 5
-etas = [1000.0,100.0,10.0,1.0,0.1,0.01,0.001]
+etas = [25,50]#,100,500,1000,5000,10000,50000]
+nvals = len(etas)
 sid =[1,2,3,4,5,6,7,8,9,10]
 
 etas = etas[:nvals]
@@ -25,24 +26,83 @@ sid = sid[:nvals]
 c={'eta':[],'sid':[],'id':[],'med_cosine':[],'med_hamming':[],'med_jaccard_topK':[], 'med_hamming_topK':[],'code_cosine':[],'code_hamming':[],'code_jaccard_topK':[], 'code_hamming_topK':[],'r':[]}
 cmean={'eta':[],'sid':[],'id':[],'med_cosine':[],'med_hamming':[],'med_jaccard_topK':[], 'med_hamming_topK':[],'code_cosine':[],'code_hamming':[],'code_jaccard_topK':[], 'code_hamming_topK':[]}
 
-    
-model = '/home/suriyag/collective-mf/SiCNMF/results/0205/vandy_SiCNMF_eta%s_i%d_rk20.pickle'
-print model
-jitter=np.arange(-0.15,0.25,0.4/niter)
 
-K=5
+def fms(Wi,Wj,Ai,Aj,Si,Sj):
+    cosine_fact_prod=[np.ones((rk,rk)) for v in range(V)]
+    for r in range(rk):
+        assert (la.norm(Wi[:,r])-1.0)<1e-15, la.norm(Wi[:,r])
+        assert (la.norm(Wj[:,r])-1.0)<1e-15, la.norm(Wj[:,r])
+        assert (la.norm(Ai[0][:,r])-1.0)<1e-15, la.norm(Ai[0][:,r])
+        assert (la.norm(Ai[1][:,r])-1.0)<1e-15, la.norm(Ai[1][:,r])
+        assert (la.norm(Aj[0][:,r])-1.0)<1e-15, la.norm(Aj[0][:,r])
+        assert (la.norm(Aj[1][:,r])-1.0)<1e-15, la.norm(Aj[1][:,r])
+        
+    for v in range(V):        
+        cosine_fact_prod[v]=np.multiply(np.dot(Wi.T,Wj),np.dot(Ai[v].T,Aj[v]))
+    
+    S1=[np.tile(Si[v],(rk,1)).T for v in range(V)]
+    S2=[np.tile(Sj[v],(rk,1)) for v in range(V)]
+    weight = [np.abs(S1[v]-S2[v])/np.maximum(S1[v],S2[v]) for v in range(V)]
+    return np.sum((np.ones((rk, rk)) - weight[v])*cosine_fact_prod[v] for v in range(V))
+
+
+def cosine_corr(Ai,Aj):
+    cosine_fact_prod=[np.ones((rk,rk)) for v in range(V)]
+    for r in range(rk):
+        assert (la.norm(Ai[0][:,r])-1.0)<1e-15, la.norm(Ai[0][:,r])
+        assert (la.norm(Ai[1][:,r])-1.0)<1e-15, la.norm(Ai[1][:,r])
+        assert (la.norm(Aj[0][:,r])-1.0)<1e-15, la.norm(Aj[0][:,r])
+        assert (la.norm(Aj[1][:,r])-1.0)<1e-15, la.norm(Aj[1][:,r])        
+    for v in range(V):        
+        cosine_fact_prod[v]=np.dot(Ai[v].T,Aj[v])    
+    return np.sum(cosine_fact_prod[v] for v in range(V))
+    
+def opt_index(C):
+    copyC = np.ones(C.shape) - C.copy()
+    hAlg = Munkres()
+    indexes = hAlg.compute(copyC)
+    rowIdx, colIdx = map(np.array, zip(*indexes))
+    return rowIdx, colIdx, indexes
+
+
+model = '/home/suriyag/collective-mf/SiCNMF/results/vandy_SiCNMF_eta%s_i%d_rk20.pickle'
+jitter=np.arange(-0.15,0.25,0.4/niter)
+V=2
+K=10 # Different from V+1, K of topK 
 for ix,eta in enumerate(etas):
     print eta
     ids=0
-    for i in range(1,niter):
-        data = pickle.load(open(model %(eta,i),'rb'))        
-        Amedi=data['Ubs'][1][:,:rk]; 
-        Acodei=data['Ubs'][2][:,:rk]; 
-        for j in range(i+1,niter):            
-            data = pickle.load(open(model %(eta,j),'rb'))
-            Amedj=data['Ubs'][1][:,:rk]; 
-            Acodej=data['Ubs'][2][:,:rk]; 
+    W=[[]]*niter
+    A=[[]]*niter
+    S=[[]]*niter
+    Stemp=[[]]*niter
+    for i in range(niter):
+        data = pickle.load(open(model %(float(eta),i),'rb'))        
+        W[i]=data['Ubs'][0][:,:rk]; 
+        A[i]=[[]]*V;S[i]=[[]]*V
+        for v in range(V):
+            A[i][v] = data['Ubs'][v+1][:,:rk];   
+            S[i][v] = np.zeros(rk)
+            for r in range(rk):
+                S[i][v][r] = la.norm(W[i][:,r])*la.norm(A[i][v][:,r])                
+                A[i][v][:,r] = A[i][v][:,r]/la.norm(A[i][v][:,r])
+                
             
+        for r in range(rk):
+            W[i][:,r] = W[i][:,r]/la.norm(W[i][:,r]) 
+
+        
+    for i in range(niter):        
+        Acodei = np.copy(A[i][0])
+        Amedi = np.copy(A[i][1])
+        for j in range(i+1,niter):            
+            #C =  fms(W[i],W[j],A[i],A[j],S[i],S[j])
+            C =  cosine_corr(A[i],A[j])
+            rowIx,colIx,idx = opt_index(C)
+   
+            Acodej = A[j][0][:,colIx]
+            Amedj = A[j][1][:,colIx]
+            #cmean['fms']=cmean['fms']+np.mean([C[k,colIx[k]] for k in range(rk)])
             # Med stats
             cc=[1-cosine(Amedi[:,r],Amedj[:,r]) for r in range(rk)]
             c['med_cosine']=c['med_cosine']+cc
@@ -169,7 +229,7 @@ for ii in range(ids):
 
 #handles=[sns.plt.plot(1, color=sns.color_palette()[i])[0] for i in range(niter-1)]
 #labels=['initialization '+str(i+1) for i in range(niter-1)] 
-ax[0,0].legend(handles, labels, loc="lower left")    
+#ax[0,0].legend(handles, labels, loc="lower left")    
 ax[0,0].set(ylabel="Medication Cosine")
 ax[0,1].set(ylabel="Medication Hamming on Support")
 ax[0,2].set(ylabel="Medication Intersect on Top %d" %K)

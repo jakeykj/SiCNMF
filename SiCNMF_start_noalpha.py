@@ -2,7 +2,7 @@
 import numpy as np
 import cPickle as pickle
 import time
-import hetroSiCNMFEstimator
+import hetroSiCNMFEstimator_noalpha as hetroSiCNMFEstimator
 import sys,getopt
 import seaborn as sns
     
@@ -12,7 +12,7 @@ import seaborn as sns
 def run_save(rk,eta,i,verbose):
     np.random.seed()
     print i,eta
-    if i<=20: sys.stdout = open(outdir+time.strftime("%d%m")+ '_%s_eta%s_i%d' %(model,eta,i) + ".out", "w")
+    if i<=20: sys.stdout = open(outdir+time.strftime("%d%m")+ '_%s_eta%s_i%d_noalpha' %(model,eta,i) + ".out", "w")
     print "ALL PARALLEL PROCESS SAME RANDOM SEED"
     print "Model:%s, Rank:%d, eta:%s, i:%d, rand:%f \n"  %(model,rk,eta,i,np.random.rand()),Xs
     fname='%svandy_%s_eta%s_i%d_rk%d' %(outdir,model,eta,i,rk)

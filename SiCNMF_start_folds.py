@@ -9,13 +9,16 @@ import seaborn as sns
 
 
 # min \sum_v \alpha_v D_v(X_v, U_pU_v.T) + eta*||U_p||_F^2, s.t. ||U_v[:,j]||_1=1
-def run_save(rk,eta,i,verbose):
+def run_save(Xs,rk,eta,cv,verbose):
     np.random.seed()
-    print i,eta
-    if i<=20: sys.stdout = open(outdir+time.strftime("%d%m")+ '_%s_eta%s_i%d' %(model,eta,i) + ".out", "w")
-    print "ALL PARALLEL PROCESS SAME RANDOM SEED"
-    print "Model:%s, Rank:%d, eta:%s, i:%d, rand:%f \n"  %(model,rk,eta,i,np.random.rand()),Xs
-    fname='%svandy_%s_eta%s_i%d_rk%d' %(outdir,model,eta,i,rk)
+    print cv,eta
+    if cv<=20: sys.stdout = open(outdir+time.strftime("%d%m")+ '_%s_eta%s_cv%d' %(model,eta,cv) + ".out", "w")
+    V=len(Xs)
+    N = [Xs[v].shape[1] for v in range(V)]
+
+    #print "ALL PARALLEL PROCESS SAME RANDOM SEED"
+    print "Model:%s, Rank:%d, eta:%s, cv:%d, rand:%f \n"  %(model,rk,eta,cv,np.random.rand()),Xs
+    fname='%svandy_%s_eta%s_cv%d_rk%d' %(outdir,model,eta,cv,rk)
     print fname
     t=time.time()
 
@@ -66,9 +69,9 @@ def configParser(fname):
         if k=='sources':
             # Souces of data, medication, diagnosis etc
             sources=v.split(',')
-        if k=='Xfiles':
+        if k=='cv_folds_path':
             # Data file paths
-            Xs=[np.load(Xf).ravel()[0] for Xf in v.split(',')]
+            cv_folds_path=v.strip()
         if k=='etaSweep':
             #  eta parameters
             etaSweep=[vv for vv in v.split(',')]
@@ -81,44 +84,45 @@ def configParser(fname):
             loss=[l.strip() for l in v.split(',')]
         #if k=='ids':
         #    ids=[float(vv) for vv in v.split(',')]
-    if not(len(loss)==len(Xs)):
-        loss=[loss[0]]*len(Xs)
+    #if not(len(loss)==len(Xs)):
+    #    loss=[loss[0]]*len(Xs)
 
-    return model,sources,Xs,rank,etaSweep,outdir,loss
+    return model,sources,cv_folds_path,rank,etaSweep,outdir,loss
 
 if __name__ == '__main__':
    
-    ids = 0
+    cvs = [0]
     cfg_file = 'SiCNMF.config'
     multProc=1;
     try:
-        opts,args=getopt.getopt(sys.argv[1:],"hf:i:p:",["config-file=","run_ids=","parallel="])
+        opts,args=getopt.getopt(sys.argv[1:],"hf:c:p:",["config-file=","cv_ids=","parallel="])
     except getopt.GetoptError:
-        print('SiCNMF_start.py -f <config file> -i <run_id>')
+        print('SiCNMF_start.py -f <config file> -c <cv_id>')
         
     for opt, arg in opts:
         if opt in ('-h','--help'):
-            print('SiCNMF_start.py -f <config file> -i <run_id>')
+            print('SiCNMF_start.py -f <config file> -c <cv_id>')
             sys.exit(0)
         elif opt in ('-f','--config-file'):
             # Config file
             cfg_file=str(arg)          
-        elif opt in ('-i','--run_ids'):
+        elif opt in ('-c','--cv_ids'):
             # Comma separated run_ids (multiple initializations). Default 1
-            ids=[int(a) for a in arg.split(',')]
+            cvs=[int(a) for a in arg.split(',')]
         elif opt in ('-p','--parallel'):
             # number of cores for multiprocessing code, 0 for no parallel
             multProc=int(arg)
     
     
-    model,sources,Xs,rk,etaSweep,outdir,loss=configParser(cfg_file)
-    V=len(Xs)
-    N = [Xs[v].shape[1] for v in range(V)]
+    model,sources,cv_folds_path,rk,etaSweep,outdir,loss=configParser(cfg_file)
+    Xs={}
+    for cv in cvs:
+        Xs[cv]=np.load(cv_folds_path+'/data_cv%d.pkl' %cv)['Xs_train']
 
     verbose = 1
     numIt = 50
     gradIt = 50
-    print ids
+    print cvs
     print etaSweep
     jobs=[];   
     if multProc:
@@ -126,8 +130,8 @@ if __name__ == '__main__':
         pool = multiprocessing.Pool(multProc)
         jobs=[];
         for eta in etaSweep:
-            for i in ids:     
-                jobs.append((rk,eta,i,verbose))
+            for cv in cvs:     
+                jobs.append((Xs[cv],rk,eta,cv,verbose))
         print jobs
         results=[pool.apply_async(run_save,p) for p in jobs]
         for result in results:
@@ -139,4 +143,4 @@ if __name__ == '__main__':
         numIt=2
         print "debug mode:multiproc =0"
         np.random.seed(42)
-        run_save(rk,eta,ids[0],verbose)
+        run_save(Xs[cv],rk,eta,cvs[0],verbose)

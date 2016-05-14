@@ -90,7 +90,7 @@ def euclidean_proj_simplex(v, s=1):
     International Conference on Machine Learning (ICML 2008)
     http://www.cs.berkeley.edu/~jduchi/projects/DuchiSiShCh08.pdf
     """
-    assert s > 0, "Radius s must be strictly positive (%d <= 0)" % s
+    assert s > 0, "Radius s must be strictly positive (%f <= 0)" % s
     n, = v.shape # will raise ValueError if v is not 1-D
     # check if we are already on the simplex
     if np.abs(v.sum()-s)<1e-15 and np.alltrue(v >= 0):

@@ -46,9 +46,8 @@ def fit(Xs, N, loss, rk, eta=None, gradIt=10, numIt=50, verbose=0, filename="tmp
     Xs=[Xs[v].tocsc() for v in range(V)]
     
     #TODO: smart alpha
-    #alpha=sicnmf_helper.computeAlpha(Xs,N,loss,rk)
-    alpha, Utemp=computeAlphaNew(Xs,N,loss,eta,rk)
-    for v in range(V): Ubs[v+1]=Utemp[v]
+    alpha=sicnmf_helper.computeAlpha(Xs,N,loss,rk)
+    #alpha=computeAlphaNew(Xs,N,loss,eta,rk)
 
     stat={'f_iter':[],'Codennz':[],'Mednnz':[],'gradIt':[]}
     
@@ -57,20 +56,12 @@ def fit(Xs, N, loss, rk, eta=None, gradIt=10, numIt=50, verbose=0, filename="tmp
     gfs = gfs + [{'func':FUbk, 'args':{'Xk':[Xs[v]],'lossk':[loss[v]],'alpha':[alpha[v]]}} for v in range(V)]
     
     # projected update for each factor for each factor: input U, step, gradU    
-#    if eta is not None:
-#        nextFactors = [{'func':computeFactorUpdate,'args':{'sU':None,'eta':eta,'bias':p_bias}}]
-#        nextFactors = nextFactors + [{'func':computeFactorUpdate,'args':{'sU':1,'eta':None,'bias':bias}} for v in range(V)]
-#    else: 
-#        nextFactors = [{'func':computeFactorUpdate,'args':{'sU':None,'eta':None,'bias':p_bias}}]
-#        nextFactors = nextFactors + [{'func':computeFactorUpdate,'args':{'sU':None,'eta':None,'bias':bias}} for v in range(V)]
-        
     if eta is not None:
-        nextFactors = [{'func':computeFactorUpdate,'args':{'sU':None,'eta':1,'bias':p_bias}}]
-        nextFactors = nextFactors + [{'func':computeFactorUpdate,'args':{'sU':eta*(float(N[v])/N[0]),'eta':None,'bias':bias}} for v in range(V)]
+        nextFactors = [{'func':computeFactorUpdate,'args':{'sU':None,'eta':eta,'bias':p_bias}}]
+        nextFactors = nextFactors + [{'func':computeFactorUpdate,'args':{'sU':1,'eta':None,'bias':bias}} for v in range(V)]
     else: 
         nextFactors = [{'func':computeFactorUpdate,'args':{'sU':None,'eta':None,'bias':p_bias}}]
         nextFactors = nextFactors + [{'func':computeFactorUpdate,'args':{'sU':None,'eta':None,'bias':bias}} for v in range(V)]
-
 
     # Outer Iterations
     ftol = 1e-8
@@ -290,13 +281,12 @@ def computeAlphaNew(Xs,N,loss,eta,rk):
         gfs = {'func':FUbk, 'args':{'Xk':[X.tocsc()],'lossk':loss,'alpha':[1],\
                                     'Vbk':[Vb],'bk':[b],'Vbk_sum':[Vb.sum(0)],'bk_sum':[b.sum()]}}
         nextFactors = {'func':computeFactorUpdate,'args':{'sU':1,'eta':None,'bias':1}}
-        Ub0,temp,_=singleUbUpdate(Ub0,gfs,nextFactors,10,verbose)  
-        f[0] = temp[0];
+        Ub0,f[0],_=singleUbUpdate(Ub0,gfs,nextFactors,10,verbose)  
+
         gfs = {'func':FUbk, 'args':{'Xk':[X.T.tocsc()],'lossk':loss,'alpha':[1],\
                                     'Vbk':[Ub0[:,:rk]],'bk':[Ub0[:,rk]],'Vbk_sum':[Ub0[:,:rk].sum(0)],'bk_sum':[Ub0[:,rk].sum()]}}        
         nextFactors = {'func':computeFactorUpdate,'args':{'sU':None,'eta':eta,'bias':0}}
-        Upat,temp,_=singleUbUpdate(Upat,gfs,nextFactors,10,0)  
-        f[0] = temp[0]
+        Upat,f[0],_=singleUbUpdate(Upat,gfs,nextFactors,10,verbose)  
    
     X=Xs[1].tocsc()
     Upat = np.random.rand(X.shape[0],rk)
@@ -308,13 +298,13 @@ def computeAlphaNew(Xs,N,loss,eta,rk):
         gfs = {'func':FUbk, 'args':{'Xk':[X.tocsc()],'lossk':loss,'alpha':[1],\
                                     'Vbk':[Vb],'bk':[b],'Vbk_sum':[Vb.sum(0)],'bk_sum':[b.sum()]}}
         nextFactors = {'func':computeFactorUpdate,'args':{'sU':1,'eta':None,'bias':1}}
-        Ub1,temp,_=singleUbUpdate(Ub1,gfs,nextFactors,10,verbose)  
-        f[1] = temp[0]
+        Ub1,f[1],_=singleUbUpdate(Ub1,gfs,nextFactors,10,verbose)  
+
         gfs = {'func':FUbk, 'args':{'Xk':[X.T.tocsc()],'lossk':loss,'alpha':[1],\
-                                  'Vbk':[Ub1[:,:rk]],'bk':[Ub1[:,rk]],'Vbk_sum':[Ub1[:,:rk].sum(0)],'bk_sum':[Ub1[:,rk].sum()]}}        
+                                    'Vbk':[Ub1[:,:rk]],'bk':[Ub1[:,rk]],'Vbk_sum':[Ub1[:,:rk].sum(0)],'bk_sum':[Ub1[:,rk].sum()]}}        
         nextFactors = {'func':computeFactorUpdate,'args':{'sU':None,'eta':eta,'bias':0}}
-        Upat,f[1],_=singleUbUpdate(Upat,gfs,nextFactors,10,0)  
-        f[1] = temp[0]
+        Upat,f[1],_=singleUbUpdate(Upat,gfs,nextFactors,10,verbose)  
+        
     alpha =  np.array([f[1]/f[0],1.0])
     print "end alpha computation", alpha
     return alpha, [Ub0, Ub1]
