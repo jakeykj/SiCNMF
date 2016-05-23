@@ -46,9 +46,8 @@ def fit(Xs, N, loss, rk, eta=None, gradIt=10, numIt=50, verbose=0, filename="tmp
     Xs=[Xs[v].tocsc() for v in range(V)]
     
     #TODO: smart alpha
-    #alpha=sicnmf_helper.computeAlpha(Xs,N,loss,rk)
-    alpha, Utemp=computeAlphaNew(Xs,N,loss,eta,rk)
-    for v in range(V): Ubs[v+1]=Utemp[v]
+    alpha=sicnmf_helper.computeAlpha(Xs,N,loss,rk)
+    #alpha, Utemp=computeAlphaNew(Xs,N,loss,eta,rk); for v in range(V): Ubs[v+1]=Utemp[v]
 
     stat={'f_iter':[],'Codennz':[],'Mednnz':[],'gradIt':[]}
     
@@ -65,8 +64,8 @@ def fit(Xs, N, loss, rk, eta=None, gradIt=10, numIt=50, verbose=0, filename="tmp
 #        nextFactors = nextFactors + [{'func':computeFactorUpdate,'args':{'sU':None,'eta':None,'bias':bias}} for v in range(V)]
         
     if eta is not None:
-        nextFactors = [{'func':computeFactorUpdate,'args':{'sU':None,'eta':1,'bias':p_bias}}]
-        nextFactors = nextFactors + [{'func':computeFactorUpdate,'args':{'sU':eta*(float(N[v])/N[0]),'eta':None,'bias':bias}} for v in range(V)]
+        nextFactors = [{'func':computeFactorUpdate,'args':{'sU':None,'eta':eta,'bias':p_bias}}]
+        nextFactors = nextFactors + [{'func':computeFactorUpdate,'args':{'sU':1,'eta':None,'bias':bias}} for v in range(V)]
     else: 
         nextFactors = [{'func':computeFactorUpdate,'args':{'sU':None,'eta':None,'bias':p_bias}}]
         nextFactors = nextFactors + [{'func':computeFactorUpdate,'args':{'sU':None,'eta':None,'bias':bias}} for v in range(V)]

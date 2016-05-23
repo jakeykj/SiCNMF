@@ -12,7 +12,8 @@ rk = 20
 N =[2039,936,161]
 
 niter = 5
-etas = [25,50,100,500,1000,5000]
+etas = [25,50,100,500,1000,5000,10000,50000]
+#etas = [0.2,0.4,0.6,0.8,1.0]
 #etas = [25,50]
 nvals = len(etas)
 sid =range(20)
@@ -30,7 +31,7 @@ best_run=np.zeros(len(etas),dtype=int)
 
 jitter=np.arange(-0.15,0.25,0.4/niter)
 
-model = '/home/suriyag/collective-mf/SiCNMF/results/vandy_SiCNMF_eta%s_i%d_rk20.pickle'
+model = '/home/suriyag/collective-mf/SiCNMF/results/0905_NO_ALPHA/vandy_SiCNMF_eta%s_i%d_rk20.pickle'
 
 for ix,eta in enumerate(etas):
     for i in range(niter):
@@ -77,7 +78,6 @@ for i in range(niter):
     sns.regplot(x="sid",y="nnzCode",data=x[x['run']==i],fit_reg=False, ax=ax[0,1], color=sns.color_palette()[i])
     ax[0,2].plot((sid+jitter[i])[:len(f[i])],f[i],'o', color=sns.color_palette()[i])
     
-    
 # Best Run
 best_palette=[sns.color_palette()[0]]*(max(sid)+1)
 for ix in range(len(etas)):
@@ -108,7 +108,7 @@ ax[1,2].plot(sid,[f[best_run[s]][s] for s in range(len(etas))],'o-',color=sns.xk
 import string
 alphabet = list(string.ascii_lowercase)
 for i,a in enumerate(fig.axes):
-    a.set(xlabel='Regularization Parameter $\eta$',xticklabels=label,\
+    a.set(xlabel='Sparsity Parameter $\eta$',xticklabels=label,\
           xticks=sid,xlim=[min(sid)-0.5,max(sid)+0.5])
     sns.plt.setp(a.get_xticklabels(), rotation=90)
 
